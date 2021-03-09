@@ -1,3 +1,10 @@
+/**
+   Author: Colin Bernstein
+   Title: Nixie Tube Clock
+*/
+
+
+//Define GPIO pins and frequently used instance variables
 #include <RealTimeClockDS1307.h>
 #include "Wire.h"
 
@@ -9,7 +16,9 @@ boolean twelveHour, holding = false, colonOn;
 byte tempHour, tempMin, tempSec, mode, curr1, curr2, curr3, curr4, curr5, curr6;
 const byte pressTime = 800;
 
-void setup() {
+//Initialize GPIOs and get the bits representing 12 vs 24 hour mode and colon flashing mode stored in the RTC
+//Get the current time
+void setup() { 
   Wire.begin();
   pinMode(A, OUTPUT);
   pinMode(B, OUTPUT);
@@ -30,6 +39,8 @@ void setup() {
   tempSec = rtc.getSeconds();
 }
 
+//Constantly multiplex tubes and check for button presses
+//Conduct cathode poisoning prevention every 600
 void loop() {
   multPlex();
   checkButton();
@@ -37,6 +48,7 @@ void loop() {
     cathodePoisoningPrevention();
 }
 
+//Flash the current digit (tube number) with the valid numerals
 void multPlex() {
   if (mode == 0 && millis() - timeRefresh >= 1000) {
     timeRefresh = millis();
@@ -145,6 +157,7 @@ void multPlex() {
   binOut(curr6, 5);
 }
 
+//Update the stored numerical values for each tube
 void refresh(byte number, byte stage) {
   switch (stage) {
     case 1: curr1 = number; break;
@@ -156,6 +169,7 @@ void refresh(byte number, byte stage) {
   }
 }
 
+//Write the binary encoded decimal to the high voltage cathode controller
 void binOut(byte number, byte stage) {
   digitalWrite(stage == 0 ? N[5] : N[stage - 1], LOW);
   digitalWrite(A, HIGH); 
@@ -178,6 +192,8 @@ void binOut(byte number, byte stage) {
   delay(2);
 }
 
+//Check for a specific button press and account for bounce time
+//and the holding threshold for the rapid scrolling of values
 void checkButton() {
   if (!digitalRead(setPin) && !holding) {
     timePressed = millis();
@@ -197,6 +213,7 @@ void checkButton() {
   }
 }
 
+//Set the selected values of hours, minutes, seconds, and modes
 void setBut() {
   if (mode < 5) {
     mode++;
@@ -241,6 +258,7 @@ void setBut() {
   }
 }
 
+//Adjust (increment or reset to base value) the currently selected value
 void adjustBut() {
   switch (mode) {
     case 1: twelveHour = !twelveHour;
@@ -272,6 +290,8 @@ void adjustBut() {
   }
 }
 
+//Run direct current through each of the cathodes for 
+//a long period at a time in an elegant pattern
 void cathodePoisoningPrevention() {
   lastCPP = millis();
   for (byte a = 0; a < 6; a++)
@@ -299,6 +319,7 @@ void cathodePoisoningPrevention() {
     digitalWrite(N[a], LOW);
 }
 
+//Either flash the colons every second or leave them on
 void colons(boolean mode) {
   Wire.beginTransmission(0x68);
   Wire.write(0x0E);
